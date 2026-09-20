@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A股涨停复盘 · 连板天梯</title>
+<meta name="description" content="A股每日涨停、连板梯队、封板率、炸板率与昨日涨停晋级率">
+<style>
+:root{
+  --ground:#E8ECF0;   /* 雾灰:页面底 */
+  --paper:#FBFCFD;    /* 纸白:天梯与表格的承载面 */
+  --ink:#17212B;      /* 墨蓝:正文与粗线 */
+  --muted:#5B6773;    /* 次要文字 */
+  --rule:#CBD3DB;     /* 分隔线 */
+  --up:#D3222F;       /* 涨停红 */
+  --up-tint:#F6D5D8;
+  --down:#12874F;     /* 跌停绿 */
+  --amber:#A96A0E;    /* 炸板琥珀 */
+  --sans:"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei UI","Noto Sans CJK SC","Source Han Sans SC",system-ui,sans-serif;
+  --num:"DIN Alternate","Bahnschrift","Roboto Condensed","Arial Narrow","PingFang SC","Microsoft YaHei UI",sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.6 var(--sans);font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 56px}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+button,select{font:inherit;color:inherit}
+
+/* header */
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding:28px 0 18px}
+h1{margin:0;font-size:1.9rem;line-height:1.15;letter-spacing:.02em;font-weight:800}
+.dateline{margin:4px 0 0;color:var(--muted)}
+.nav{display:flex;align-items:center;gap:6px}
+.nav button,.nav select{height:38px;border:1px solid var(--rule);background:var(--paper);border-radius:4px;padding:0 12px;cursor:pointer}
+.nav button:disabled{opacity:.4;cursor:default}
+.nav select{min-width:170px}
+
+/* metrics strip */
+.metrics{display:grid;grid-template-columns:repeat(6,1fr);border-top:2px solid var(--ink);border-bottom:1px solid var(--rule)}
+.metric{padding:14px 14px 14px 16px;border-left:1px solid var(--rule)}
+.metric:first-child{padding-left:0;border-left:0}
+.metric .label{color:var(--muted);font-size:.85rem}
+.metric .val{font-family:var(--num);font-size:2rem;font-weight:700;line-height:1.2;margin:2px 0}
+.metric .val small{font-size:1rem;font-weight:600;margin-left:1px}
+.metric .sub{color:var(--muted);font-size:.8rem;line-height:1.4}
+.c-up{color:var(--up)} .c-amber{color:var(--amber)} .c-down{color:var(--down)}
+
+/* layout */
+.main{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(280px,1fr);gap:36px;margin-top:32px;align-items:start}
+h2{margin:0 0 10px;font-size:1.1rem;font-weight:800;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+h2 .aside{font-size:.85rem;font-weight:400;color:var(--muted)}
+
+/* ladder (hero) */
+.ladder{background:var(--paper);border:1px solid var(--rule)}
+.rung{display:grid;grid-template-columns:88px minmax(0,1fr);border-top:1px solid var(--rule)}
+.rung:first-child{border-top:0}
+.rung-n{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 4px;
+  background:color-mix(in srgb,var(--up) var(--mix,100%),var(--up-tint));color:#fff}
+.rung-n .n{font-family:var(--num);font-size:2.5rem;font-weight:800;line-height:1}
+.rung-n .u{font-size:.8rem;font-weight:700;margin-top:2px}
+.rung-n .k{font-size:.75rem;font-weight:600;margin-top:2px;opacity:.95}
+.rung.first .rung-n{background:#E1E6EB;color:var(--ink)}
+.rung-body{padding:12px 14px}
+.chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:flex;flex-direction:column;gap:1px;min-width:92px;border:1px solid var(--rule);border-radius:4px;padding:5px 9px 6px;background:#fff}
+.chip .nm{font-weight:700;line-height:1.3}
+.chip .in{color:var(--muted);font-size:.78rem;line-height:1.3}
+.chip .tags{display:flex;gap:4px;margin-top:2px}
+.tag{font-size:.7rem;line-height:1;padding:2px 4px;border:1px solid currentColor;border-radius:2px;color:var(--up);font-weight:600}
+.tag.re{color:var(--amber)}
+.chips.compact .chip{min-width:0;padding:3px 8px;flex-direction:row;gap:6px;align-items:baseline}
+.chips.compact .in{display:none}
+.firsts summary{cursor:pointer;color:var(--muted);padding:2px 0 8px}
+.firsts[open] summary{color:var(--ink)}
+.firsts .lead{margin:0 0 8px;color:var(--muted)}
+
+/* side panels */
+.panel{margin-bottom:30px}
+table{width:100%;border-collapse:collapse}
+.plain th,.plain td{padding:7px 6px;text-align:right;border-bottom:1px solid var(--rule)}
+.plain th:first-child,.plain td:first-child{text-align:left;padding-left:0}
+.plain th{font-weight:600;color:var(--muted);font-size:.8rem;border-bottom:1px solid var(--ink)}
+.plain tr.total td{font-weight:700;border-bottom:0}
+.bars{list-style:none;margin:0;padding:0}
+.bars li{display:grid;grid-template-columns:5.5em 1fr 2em;gap:10px;align-items:center;padding:3px 0}
+.bars .track{height:10px;background:#DDE3E9}
+.bars .fill{height:100%;background:var(--up)}
+.bars .cnt{text-align:right;font-weight:600}
+.note{color:var(--muted);font-size:.85rem;margin:6px 0 0}
+
+/* trends */
+.trends{margin-top:16px}
+.charts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}
+.chart h3{margin:0 0 4px;font-size:.95rem}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.chart .lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.8rem;color:var(--muted);margin-top:4px}
+.chart .lg i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+.chart .lg b{color:var(--ink);font-family:var(--num);font-size:.9rem}
+.grid line{stroke:var(--rule);stroke-width:1}
+.axis text{font-size:10px;fill:var(--muted);font-family:var(--num)}
+.pt{cursor:pointer}
+
+/* tables */
+.tables{margin-top:40px}
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--ink);flex-wrap:wrap}
+.tabs button{border:0;background:transparent;padding:9px 14px;cursor:pointer;font-weight:600;color:var(--muted);border-radius:4px 4px 0 0}
+.tabs button[aria-selected="true"]{background:var(--ink);color:#fff}
+.tabs .ct{font-family:var(--num);margin-left:5px;opacity:.85}
+.scroll{overflow:auto;max-height:560px;background:var(--paper);border:1px solid var(--rule);border-top:0}
+.data th,.data td{padding:8px 10px;white-space:nowrap;text-align:left;border-bottom:1px solid #E3E8ED}
+.data td.num,.data th.num{text-align:right}
+.data thead th{position:sticky;top:0;background:#EEF1F4;z-index:1;font-weight:600;font-size:.82rem;border-bottom:1px solid var(--rule);padding:0}
+.data thead button{all:unset;box-sizing:border-box;display:block;width:100%;padding:8px 10px;cursor:pointer}
+.data thead button:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+.data th[aria-sort="ascending"] button::after{content:" ↑"}
+.data th[aria-sort="descending"] button::after{content:" ↓"}
+.data td small{color:var(--muted);margin-left:6px}
+.data tr:hover td{background:#F3F6F9}
+.empty{padding:28px 16px;color:var(--muted)}
+
+footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--rule);color:var(--muted);font-size:.85rem}
+footer p{margin:4px 0;max-width:80ch}
+
+.state{margin:60px auto;max-width:560px;padding:20px 22px;background:var(--paper);border:1px solid var(--rule);border-left:4px solid var(--amber)}
+.state h2{display:block}
+.state code{background:#E8ECF0;padding:1px 5px;border-radius:3px}
+
+@media (max-width:900px){
+  .main{grid-template-columns:1fr;gap:8px}
+  .charts{grid-template-columns:1fr;gap:24px}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .metric,.metric:first-child{padding:12px 10px 12px 0;border-left:0;border-bottom:1px solid var(--rule)}
+  .metric:nth-child(even){padding-left:14px;border-left:1px solid var(--rule)}
+  .metric:nth-last-child(-n+2){border-bottom:0}
+}
+@media (max-width:520px){
+  h1{font-size:1.55rem}
+  .rung{grid-template-columns:68px minmax(0,1fr)}
+  .rung-n .n{font-size:2rem}
+  .nav select{min-width:0;flex:1}
+  .nav{width:100%}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>A股涨停复盘</h1>
+      <p class="dateline" id="dateline">加载中…</p>
+    </div>
+    <div class="nav" role="group" aria-label="切换交易日">
+      <button id="prev" type="button" aria-label="前一个交易日">‹ 前一日</button>
+      <select id="picker" aria-label="选择交易日"></select>
+      <button id="next" type="button" aria-label="后一个交易日">后一日 ›</button>
+    </div>
+  </header>
+
+  <div id="app" hidden>
+    <section class="metrics" id="metrics" aria-label="当日核心指标"></section>
+
+    <div class="main">
+      <section>
+        <h2>连板天梯 <span class="aside" id="ladder-aside"></span></h2>
+        <div class="ladder" id="ladder"></div>
+      </section>
+      <div>
+        <section class="panel">
+          <h2>昨日涨停,今日表现</h2>
+          <div id="prev-levels"></div>
+        </section>
+        <section class="panel">
+          <h2>涨停集中的行业</h2>
+          <ul class="bars" id="industries"></ul>
+        </section>
+      </div>
+    </div>
+
+    <section class="trends">
+      <h2>近期走势 <span class="aside" id="trend-aside"></span></h2>
+      <div class="charts" id="charts"></div>
+    </section>
+
+    <section class="tables">
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <div class="scroll" id="table"></div>
+    </section>
+
+    <footer id="foot"></footer>
+  </div>
+
+  <div id="state" class="state" hidden></div>
+</div>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = (v, d = 2) => (v == null ? "–" : Number(v).toFixed(d));
+const signed = (v, d = 2, unit = "") => (v == null ? "–" : (v > 0 ? "+" : "") + Number(v).toFixed(d) + unit);
+const WEEK = ["日","一","二","三","四","五","六"];
+const lvLabel = (n) => (n <= 1 ? "首板" : n + "板");
+
+let INDEX = null;           // data/index.json
+let DATES = [];             // 升序
+const CACHE = new Map();    // date -> day json
+let cur = null, tab = "limit_up", sort = { key: null, dir: 1 };
+
+/* ---------- 启动 ---------- */
+async function boot() {
+  try {
+    const r = await fetch("data/index.json", { cache: "no-cache" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    INDEX = await r.json();
+  } catch (e) {
+    return showState("读不到数据文件",
+      `<p>没能加载 <code>data/index.json</code>(${esc(e.message)})。</p>
+       <p>如果是直接双击打开的 index.html,浏览器会拦截本地文件读取。请在项目目录运行 <code>python -m http.server 8000</code>,再访问 <code>http://localhost:8000</code>。</p>`);
+  }
+  DATES = INDEX.days.map((d) => d.date);
+  if (!DATES.length) {
+    return showState("还没有数据",
+      `<p>先运行 <code>python fetch_data.py --backfill 20</code> 生成最近 20 个交易日的数据,再刷新本页。</p>`);
+  }
+  $("#picker").innerHTML = [...DATES].reverse().map((d) => `<option value="${d}">${d} 周${WEEK[new Date(d + "T00:00:00").getDay()]}</option>`).join("");
+  $("#picker").addEventListener("change", (e) => select(e.target.value));
+  $("#prev").addEventListener("click", () => step(-1));
+  $("#next").addEventListener("click", () => step(1));
+  window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (DATES.includes(h) && h !== cur) select(h, true); });
+  const h = location.hash.slice(1);
+  select(DATES.includes(h) ? h : DATES[DATES.length - 1], true);
+}
+
+function showState(title, html) {
+  $("#dateline").textContent = "";
+  const s = $("#state");
+  s.innerHTML = `<h2>${esc(title)}</h2>${html}`;
+  s.hidden = false;
+  document.querySelector(".nav").hidden = true;
+}
+
+function step(delta) {
+  const i = DATES.indexOf(cur) + delta;
+  if (i >= 0 && i < DATES.length) select(DATES[i]);
+}
+
+async function loadDay(date) {
+  if (CACHE.has(date)) return CACHE.get(date);
+  const r = await fetch(`data/${date}.json`, { cache: "no-cache" });
+  if (!r.ok) throw new Error(`${date}.json: HTTP ${r.status}`);
+  const d = await r.json();
+  CACHE.set(date, d);
+  return d;
+}
+
+async function select(date, fromHash) {
+  let day;
+  try { day = await loadDay(date); }
+  catch (e) { return showState("这一天的数据读取失败", `<p>${esc(e.message)}</p>`); }
+  cur = date;
+  if (!fromHash) history.replaceState(null, "", "#" + date);
+  $("#picker").value = date;
+  const i = DATES.indexOf(date);
+  $("#prev").disabled = i <= 0;
+  $("#next").disabled = i >= DATES.length - 1;
+  $("#dateline").textContent = `${date.replace(/-(\d+)-(\d+)/, (_, m, d) => `年${+m}月${+d}日`)} 周${WEEK[new Date(date + "T00:00:00").getDay()]}`;
+  $("#state").hidden = true;
+  $("#app").hidden = false;
+  sort = { key: null, dir: 1 };
+  renderMetrics(day, i > 0 ? INDEX.days[i - 1] : null);
+  renderLadder(day);
+  renderPrev(day);
+  renderIndustries(day);
+  renderTrends();
+  renderTabs(day);
+  renderFoot(day);
+}
+
+/* ---------- 指标条 ---------- */
+function renderMetrics(day, prev) {
+  const s = day.summary;
+  const dRate = (k) => (prev && prev[k] != null && s[k] != null ? `较前一交易日 ${signed(s[k] - prev[k], 1, "pt")}` : "");
+  const dCnt = (k) => (prev && prev[k] != null ? `较前一交易日 ${signed(s[k] - prev[k], 0)}` : "");
+  const cells = [
+    { l: "涨停", v: s.limit_up, u: "只", c: "c-up", sub: `首板 ${s.first_board},连板 ${s.multi_board},一字 ${s.one_word}` },
+    { l: "炸板", v: s.broken, u: "只", c: "c-amber", sub: "触及涨停但收盘没封住" },
+    { l: "封板率", v: num(s.seal_rate, 1), u: "%", c: "", sub: dRate("seal_rate") || "涨停 ÷ (涨停 + 炸板)" },
+    { l: "炸板率", v: num(s.broken_rate, 1), u: "%", c: "c-amber", sub: dRate("broken_rate") || "炸板 ÷ (涨停 + 炸板)" },
+    { l: "跌停", v: s.limit_down, u: "只", c: "c-down", sub: dCnt("limit_down") },
+    { l: "昨日涨停晋级率", v: num(s.promotion_rate, 1), u: "%", c: "", sub: s.prev_limit_up ? `昨日涨停 ${s.prev_limit_up} 只,今日继续涨停 ${s.promoted} 只` : "暂无昨日涨停数据" },
+  ];
+  $("#metrics").innerHTML = cells.map((c) =>
+    `<div class="metric"><div class="label">${c.l}</div><div class="val ${c.c}">${c.v}<small>${c.u}</small></div><div class="sub">${esc(c.sub)}</div></div>`).join("");
+}
+
+/* ---------- 连板天梯 ---------- */
+function chip(r, compact) {
+  const tip = [`${r.name} ${r.code} ${r.market || ""}`, `首封 ${r.first_time || "–"}`, `炸板 ${r.open_times ?? 0} 次`,
+    `封板资金 ${num(r.seal_amount)} 亿`, `流通市值 ${num(r.float_cap)} 亿`, r.industry || ""].join(" | ");
+  const tags = (r.one_word ? `<span class="tag">一字</span>` : "") + (!r.one_word && r.open_times > 0 ? `<span class="tag re">回封</span>` : "");
+  return `<li class="chip" title="${esc(tip)}"><span class="nm">${esc(r.name)}</span>` +
+    (compact ? "" : `<span class="in">${esc(r.industry || "")}</span>`) +
+    (tags && !compact ? `<span class="tags">${tags}</span>` : "") + `</li>`;
+}
+
+function renderLadder(day) {
+  const s = day.summary;
+  $("#ladder-aside").textContent = s.max_boards >= 2 ? `最高 ${s.max_boards} 板` : "今日没有连板股";
+  const multi = day.ladder.filter((g) => g.boards >= 2);
+  const first = day.ladder.find((g) => g.boards === 1);
+  const top = s.max_boards, span = Math.max(top - 2, 1);
+  let html = multi.map((g) => {
+    const mix = 70 + Math.round(((g.boards - 2) / span) * 30);
+    return `<div class="rung" style="--mix:${Math.min(mix, 100)}%">
+      <div class="rung-n"><span class="n">${g.boards}</span><span class="u">连板</span><span class="k">${g.count} 只</span></div>
+      <div class="rung-body"><ul class="chips">${g.stocks.map((r) => chip(r)).join("")}</ul></div></div>`;
+  }).join("");
+  if (first) {
+    const wide = first.stocks.filter((r) => r.one_word).length;
+    html += `<div class="rung first">
+      <div class="rung-n"><span class="n">1</span><span class="u">首板</span><span class="k">${first.count} 只</span></div>
+      <div class="rung-body"><details class="firsts"><summary>展开全部 ${first.count} 只首板${wide ? `(其中一字 ${wide} 只)` : ""}</summary>
+      <ul class="chips compact">${first.stocks.map((r) => chip(r, true)).join("")}</ul></details></div></div>`;
+  }
+  $("#ladder").innerHTML = html || `<div class="empty">当天没有涨停股。</div>`;
+}
+
+/* ---------- 昨日涨停 -> 今日 ---------- */
+function renderPrev(day) {
+  const rows = day.prev_levels || [];
+  if (!rows.length) { $("#prev-levels").innerHTML = `<p class="note">没有昨日涨停数据。</p>`; return; }
+  const s = day.summary;
+  $("#prev-levels").innerHTML = `<table class="plain"><thead><tr><th>昨日</th><th>只数</th><th>晋级</th><th>晋级率</th><th>今日均涨幅</th></tr></thead><tbody>` +
+    rows.map((r) => `<tr><td>${lvLabel(r.boards)}</td><td>${r.count}</td><td>${r.promoted}</td><td>${num(r.rate, 0)}%</td><td class="${r.avg_pct > 0 ? "c-up" : r.avg_pct < 0 ? "c-down" : ""}">${signed(r.avg_pct, 2, "%")}</td></tr>`).join("") +
+    `<tr class="total"><td>合计</td><td>${s.prev_limit_up}</td><td>${s.promoted}</td><td>${num(s.promotion_rate, 0)}%</td><td class="${s.prev_avg_pct > 0 ? "c-up" : s.prev_avg_pct < 0 ? "c-down" : ""}">${signed(s.prev_avg_pct, 2, "%")}</td></tr></tbody></table>
+    <p class="note">晋级 = 昨天涨停、今天继续涨停。</p>`;
+}
+
+function renderIndustries(day) {
+  const list = (day.industries || []).slice(0, 8);
+  const max = Math.max(1, ...list.map((x) => x.count));
+  $("#industries").innerHTML = list.map((x) =>
+    `<li><span>${esc(x.name)}</span><span class="track"><span class="fill" style="display:block;width:${(x.count / max) * 100}%"></span></span><span class="cnt">${x.count}</span></li>`).join("")
+    || `<li class="note">暂无</li>`;
+}
+
+/* ---------- 走势(内联 SVG,无第三方依赖) ---------- */
+function lineChart(days, defs, opts = {}) {
+  const W = 340, H = 140, pl = 34, pr = 8, pt = 10, pb = 22, n = days.length;
+  const vals = defs.flatMap((d) => days.map((x) => x[d.key]).filter((v) => v != null));
+  if (!vals.length) return `<p class="note">暂无数据</p>`;
+  let lo = opts.min ?? Math.min(...vals), hi = opts.max ?? Math.max(...vals);
+  if (lo === hi) { lo -= 1; hi += 1; }
+  const pad = (hi - lo) * 0.08;
+  if (opts.min == null) lo -= pad;
+  if (opts.max == null) hi += pad;
+  const X = (i) => pl + (n === 1 ? (W - pl - pr) / 2 : (i * (W - pl - pr)) / (n - 1));
+  const Y = (v) => pt + (1 - (v - lo) / (hi - lo)) * (H - pt - pb);
+  const fmt = opts.fmt || ((v) => Math.round(v));
+  const ticks = [lo, (lo + hi) / 2, hi];
+  const ci = days.findIndex((d) => d.date === cur);
+  const md = (d) => d.slice(5);
+  let g = `<g class="grid axis">` + ticks.map((t) => `<line x1="${pl}" x2="${W - pr}" y1="${Y(t)}" y2="${Y(t)}"/><text x="${pl - 5}" y="${Y(t) + 3}" text-anchor="end">${fmt(t)}</text>`).join("") + `</g>`;
+  g += `<g class="axis"><text x="${pl}" y="${H - 5}">${md(days[0].date)}</text><text x="${W - pr}" y="${H - 5}" text-anchor="end">${md(days[n - 1].date)}</text></g>`;
+  if (ci >= 0) g += `<line x1="${X(ci)}" x2="${X(ci)}" y1="${pt}" y2="${H - pb}" stroke="var(--ink)" stroke-width="1" stroke-dasharray="2 3"/>`;
+  for (const d of defs) {
+    let path = "", pen = false;
+    days.forEach((x, i) => { const v = x[d.key]; if (v == null) { pen = false; return; } path += `${pen ? "L" : "M"}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`; pen = true; });
+    g += `<path d="${path}" fill="none" stroke="${d.color}" stroke-width="2" stroke-linejoin="round"/>`;
+    if (ci >= 0 && days[ci][d.key] != null) g += `<circle cx="${X(ci)}" cy="${Y(days[ci][d.key])}" r="3.5" fill="${d.color}"/>`;
+  }
+  // 透明命中区:点击跳到当天
+  g += days.map((x, i) => `<rect class="pt" x="${X(i) - (W - pl - pr) / Math.max(n - 1, 1) / 2}" y="${pt}" width="${(W - pl - pr) / Math.max(n - 1, 1)}" height="${H - pt - pb}" fill="transparent" data-date="${x.date}"><title>${x.date}: ${defs.map((d) => `${d.name} ${x[d.key] == null ? "–" : fmt(x[d.key]) + (opts.unit || "")}`).join(",")}</title></rect>`).join("");
+  const now = ci >= 0 ? days[ci] : days[n - 1];
+  const lg = defs.map((d) => `<span><i style="background:${d.color}"></i>${d.name} <b>${now[d.key] == null ? "–" : fmt(now[d.key]) + (opts.unit || "")}</b></span>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opts.label || "")}">${g}</svg><div class="lg">${lg}</div>`;
+}
+
+function renderTrends() {
+  const i = DATES.indexOf(cur);
+  const days = INDEX.days.slice(Math.max(0, i - 29), i + 1);
+  $("#trend-aside").textContent = `最近 ${days.length} 个交易日,点击图上任意一天可切换`;
+  const charts = [
+    { t: "封板率与晋级率", html: lineChart(days, [{ key: "seal_rate", name: "封板率", color: "var(--up)" }, { key: "promotion_rate", name: "晋级率", color: "var(--ink)" }], { fmt: (v) => Math.round(v) + "%", unit: "", label: "封板率与晋级率走势" }) },
+    { t: "涨停、炸板、跌停家数", html: lineChart(days, [{ key: "limit_up", name: "涨停", color: "var(--up)" }, { key: "broken", name: "炸板", color: "var(--amber)" }, { key: "limit_down", name: "跌停", color: "var(--down)" }], { min: 0, label: "涨停炸板跌停家数走势" }) },
+    { t: "最高连板高度", html: lineChart(days, [{ key: "max_boards", name: "最高板", color: "var(--up)" }], { min: 0, label: "最高连板走势" }) },
+  ];
+  $("#charts").innerHTML = charts.map((c) => `<div class="chart"><h3>${c.t}</h3>${c.html}</div>`).join("");
+  $("#charts").querySelectorAll("[data-date]").forEach((el) => el.addEventListener("click", () => select(el.dataset.date)));
+}
+
+/* ---------- 明细表 ---------- */
+const nameCell = (r) => `${esc(r.name)}<small>${esc(r.code)}</small>`;
+const pctCell = (r) => `<span class="${r.pct > 0 ? "c-up" : r.pct < 0 ? "c-down" : ""}">${signed(r.pct, 2, "%")}</span>`;
+const N = (k, h, d = 2) => ({ k, h, num: true, r: (r) => num(r[k], d) });
+const TABS = {
+  limit_up: { label: "涨停", cols: [
+    { k: "name", h: "名称", r: nameCell }, { k: "boards", h: "连板", num: true, r: (r) => r.boards },
+    { k: "pct", h: "涨幅", num: true, r: pctCell }, { k: "first_time", h: "首次封板", r: (r) => r.first_time || "–" },
+    { k: "open_times", h: "炸板次数", num: true, r: (r) => r.open_times ?? 0 }, N("seal_amount", "封板资金(亿)"), N("amount", "成交额(亿)"),
+    N("float_cap", "流通市值(亿)"), N("turnover", "换手率(%)"), { k: "industry", h: "行业", r: (r) => esc(r.industry || "") } ] },
+  broken: { label: "炸板", cols: [
+    { k: "name", h: "名称", r: nameCell }, { k: "pct", h: "收盘涨幅", num: true, r: pctCell }, { k: "first_time", h: "首次封板", r: (r) => r.first_time || "–" },
+    { k: "open_times", h: "炸板次数", num: true, r: (r) => r.open_times ?? 0 }, N("amplitude", "振幅(%)"), N("amount", "成交额(亿)"),
+    N("float_cap", "流通市值(亿)"), N("turnover", "换手率(%)"), { k: "industry", h: "行业", r: (r) => esc(r.industry || "") } ] },
+  limit_down: { label: "跌停", cols: [
+    { k: "name", h: "名称", r: nameCell }, { k: "pct", h: "涨幅", num: true, r: pctCell }, { k: "days", h: "连续跌停", num: true, r: (r) => r.days ?? "–" },
+    N("seal_amount", "封单资金(亿)"), { k: "open_times", h: "开板次数", num: true, r: (r) => r.open_times ?? 0 }, N("amount", "成交额(亿)"),
+    N("float_cap", "流通市值(亿)"), { k: "industry", h: "行业", r: (r) => esc(r.industry || "") } ] },
+  prev: { label: "昨日涨停", cols: [
+    { k: "name", h: "名称", r: nameCell }, { k: "prev_boards", h: "昨日板数", num: true, r: (r) => lvLabel(r.prev_boards || 1) },
+    { k: "pct", h: "今日涨幅", num: true, r: pctCell }, { k: "promoted", h: "今日", r: (r) => (r.promoted ? `<span class="c-up">继续涨停</span>` : "未涨停") },
+    N("amount", "成交额(亿)"), N("turnover", "换手率(%)"), { k: "industry", h: "行业", r: (r) => esc(r.industry || "") } ] },
+};
+
+function renderTabs(day) {
+  $("#tabs").innerHTML = Object.entries(TABS).map(([k, t]) =>
+    `<button role="tab" type="button" data-tab="${k}" aria-selected="${k === tab}">${t.label}<span class="ct">${(day[k] || []).length}</span></button>`).join("");
+  $("#tabs").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { tab = b.dataset.tab; sort = { key: null, dir: 1 }; renderTabs(day); }));
+  renderTable(day);
+}
+
+function renderTable(day) {
+  const def = TABS[tab];
+  let rows = [...(day[tab] || [])];
+  if (!rows.length) { $("#table").innerHTML = `<div class="empty">当天没有「${def.label}」数据。</div>`; return; }
+  if (sort.key) {
+    const k = sort.key;
+    rows.sort((a, b) => {
+      const x = a[k], y = b[k];
+      if (x == null && y == null) return 0;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return (typeof x === "string" ? x.localeCompare(y, "zh") : x - y) * sort.dir;
+    });
+  }
+  const th = def.cols.map((c) => `<th class="${c.num ? "num" : ""}" aria-sort="${sort.key === c.k ? (sort.dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-k="${c.k}">${c.h}</button></th>`).join("");
+  const tr = rows.map((r) => `<tr>${def.cols.map((c) => `<td class="${c.num ? "num" : ""}">${c.r(r)}</td>`).join("")}</tr>`).join("");
+  $("#table").innerHTML = `<table class="data"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
+  $("#table").querySelectorAll("thead button").forEach((b) => b.addEventListener("click", () => {
+    const k = b.dataset.k;
+    sort = sort.key === k ? { key: k, dir: -sort.dir } : { key: k, dir: typeof rows[0][k] === "string" ? 1 : -1 };
+    renderTable(day);
+  }));
+}
+
+/* ---------- 说明 ---------- */
+function renderFoot(day) {
+  $("#foot").innerHTML = `
+    <p><b>封板率</b> = 涨停家数 ÷ (涨停家数 + 炸板家数);<b>炸板率</b> = 炸板家数 ÷ (涨停家数 + 炸板家数),两者相加为 100%。炸板指盘中触及涨停、收盘没有封住的股票。</p>
+    <p><b>晋级率</b> = 昨日涨停的股票中,今日继续涨停的比例,按昨日连板数分层统计。<b>回封</b> = 盘中打开过涨停又重新封上。</p>
+    <p>数据来自东方财富涨停股池(通过 AkShare 获取)${day.exclude_st ? ",已剔除 ST 与 *ST 股票" : ""},生成于 ${esc((day.generated_at || "").replace("T", " ").slice(0, 16))}。仅供复盘参考,不构成投资建议。</p>`;
+}
+
+boot();
+</script>
+</body>
+</html>
