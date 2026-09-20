@@ -1,0 +1,46 @@
+name: update-data
+
+on:
+  schedule:
+    # 北京时间工作日 15:40 (UTC 07:40);GitHub 定时任务可能延迟几分钟到几十分钟
+    - cron: "40 7 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: "回补最近 N 个交易日(留空则只抓今天)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Fetch data
+        env:
+          BACKFILL: ${{ github.event.inputs.backfill }}
+        run: |
+          if [ -n "$BACKFILL" ]; then
+            python fetch_data.py --backfill "$BACKFILL"
+          else
+            python fetch_data.py
+          fi
+
+      - name: Commit data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet || git commit -m "data: $(TZ=Asia/Shanghai date +%F)"
+          git push
