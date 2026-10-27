@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-26T22:33:51+08:00",
+ "updated": "2026-10-27T21:33:51+08:00",
  "days": [
   {
    "date": "2026-08-31",
@@ -560,6 +560,22 @@
    "promoted": 15,
    "promotion_rate": 18.29,
    "prev_avg_pct": 2.66
+  },
+  {
+   "date": "2026-10-27",
+   "limit_up": 41,
+   "broken": 28,
+   "limit_down": 22,
+   "seal_rate": 59.42,
+   "broken_rate": 40.58,
+   "first_board": 29,
+   "multi_board": 12,
+   "one_word": 1,
+   "max_boards": 5,
+   "prev_limit_up": 55,
+   "promoted": 12,
+   "promotion_rate": 21.82,
+   "prev_avg_pct": 1.36
   }
  ]
 }
